@@ -1,6 +1,6 @@
-# 🤖 Gemini URL Prompt (GeminiUrlPrompt-TS)
+# 🤖 Gemini URL Prompt (GeminiUrlPrompt)
 
-[![GitHub License](https://img.shields.io/github/license/Yuno-Liu/GeminiUrlPrompt-TS)](LICENSE)
+[![GitHub License](https://img.shields.io/github/license/Yuno-Liu/GeminiUrlPrompt)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Manifest V3](https://img.shields.io/badge/Chrome%20Extension-Manifest%20V3-4285F4?logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![Google Gemini](https://img.shields.io/badge/Target-Google%20Gemini-8E75C2?logo=google&logoColor=white)](https://gemini.google.com/)
@@ -25,8 +25,8 @@
 
 1. 複製專案並安裝依賴：
    ```bash
-   git clone https://github.com/Yuno-Liu/GeminiUrlPrompt-TS.git
-   cd GeminiUrlPrompt-TS
+   git clone https://github.com/Yuno-Liu/GeminiUrlPrompt.git
+   cd GeminiUrlPrompt
    npm install
    npm run build
    ```
@@ -82,7 +82,7 @@ npm run clean
 ## 📂 專案結構
 
 ```
-GeminiUrlPrompt-TS/
+GeminiUrlPrompt/
 ├── src/
 │   ├── content.ts          # Content script 主入口點
 │   └── utils/
@@ -127,3 +127,4 @@ inputElement.dispatchEvent(
 ## 📜 授權協議 (License)
 
 本專案採用 [MIT License](LICENSE) 授權。
+
