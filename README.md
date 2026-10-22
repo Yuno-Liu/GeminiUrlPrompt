@@ -21,19 +21,28 @@
 
 ## 🚀 安裝說明
 
-### 載入未封裝項目（開發者模式）
+### 方式一：從 GitHub Releases 下載（推薦，開箱即用）
 
-1. 複製專案並安裝依賴：
+無需安裝 Node.js 或進行原始碼編譯，直接下載即可部屬使用：
+
+1. 前往本專案的 [Releases 頁面](https://github.com/Yuno-Liu/GeminiUrlPrompt/releases)。
+2. 下載最新版本的 `GeminiUrlPrompt-v*.zip` 檔案。
+3. 解壓縮至電腦任意資料夾。
+4. 開啟 Chrome 瀏覽器，在網址列輸入 `chrome://extensions/` 並按 Enter。
+5. 開啟右上角 **「開發人員模式」 (Developer mode)**。
+6. 點選左上角 **「載入未封裝項目」 (Load unpacked)**。
+7. 選取解壓縮後的 `dist` 資料夾即可完成安裝！
+
+### 方式二：從原始碼自行編譯（開發者用）
+
+1. 克隆專案並安裝依賴編譯：
    ```bash
    git clone https://github.com/Yuno-Liu/GeminiUrlPrompt.git
    cd GeminiUrlPrompt
    npm install
    npm run build
    ```
-2. 編譯完成後，擴充套件檔案輸出於 `dist/` 資料夾。
-3. 開啟 Chrome 瀏覽器，網址列輸入 `chrome://extensions/`。
-4. 開啟右上角的「**開發人員模式**」。
-5. 點擊「**載入未封裝項目**」，選取本專案的 `dist/` 資料夾。
+2. 開啟 Chrome `chrome://extensions/`，啟用「開發人員模式」，點選「載入未封裝項目」，選擇 `dist` 資料夾即可完成安裝。
 
 ---
 
@@ -127,4 +136,5 @@ inputElement.dispatchEvent(
 ## 📜 授權協議 (License)
 
 本專案採用 [MIT License](LICENSE) 授權。
+
 
