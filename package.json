@@ -7,7 +7,7 @@
         "build": "esbuild src/content.ts --bundle --outfile=dist/content.js --format=iife --target=es2020 && npm run copy:manifest",
         "copy:manifest": "node -e \"require('fs').copyFileSync('manifest.dist.json', 'dist/manifest.json')\"",
         "watch": "esbuild src/content.ts --bundle --outfile=dist/content.js --format=iife --target=es2020 --watch",
-        "clean": "rimraf dist/*.js dist/*.js.map dist-test",
+        "clean": "rimraf dist dist-test",
         "typecheck": "tsc --noEmit",
         "build:test": "tsc -p tsconfig.test.json",
         "test": "npm run build:test && node --test tests/*.test.mjs"
@@ -26,3 +26,4 @@
     "author": "",
     "license": "MIT"
 }
+
