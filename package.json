@@ -1,13 +1,16 @@
 {
     "name": "gemini-url-prompt",
     "version": "1.0.0",
-    "description": "Gemini URL Prompt - TypeScript 版本",
+    "type": "module",
+    "description": "Gemini URL Prompt - 自動讀取網址參數並填入 Google Gemini 對話框",
     "scripts": {
         "build": "esbuild src/content.ts --bundle --outfile=dist/content.js --format=iife --target=es2020 && npm run copy:manifest",
         "copy:manifest": "node -e \"require('fs').copyFileSync('manifest.dist.json', 'dist/manifest.json')\"",
         "watch": "esbuild src/content.ts --bundle --outfile=dist/content.js --format=iife --target=es2020 --watch",
-        "clean": "rimraf dist/*.js dist/*.js.map",
-        "typecheck": "tsc --noEmit"
+        "clean": "rimraf dist/*.js dist/*.js.map dist-test",
+        "typecheck": "tsc --noEmit",
+        "build:test": "tsc -p tsconfig.test.json",
+        "test": "npm run build:test && node --test tests/*.test.mjs"
     },
     "devDependencies": {
         "@types/chrome": "^0.0.287",
@@ -23,4 +26,3 @@
     "author": "",
     "license": "MIT"
 }
-
