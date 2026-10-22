@@ -68,28 +68,99 @@ export function waitForElement(
 }
 
 /**
- * 將提示詞寫入輸入元素並派發 input 事件
+ * 輪詢等待送出按鈕出現且處於啟用狀態 (非 disabled 且 aria-disabled !== "true")
+ */
+export async function waitForEnabledSendButton(
+    candidates: string[],
+    timeout: number = 6000,
+    interval: number = 150
+): Promise<HTMLButtonElement | null> {
+    const startTime = Date.now();
+    let foundDisabledButton: HTMLButtonElement | null = null;
+
+    while (Date.now() - startTime < timeout) {
+        for (const selector of candidates) {
+            const el = querySelectorOrXPath(selector) as HTMLButtonElement | null;
+            if (el) {
+                const isDisabled = el.disabled || el.getAttribute("aria-disabled") === "true";
+                if (!isDisabled) {
+                    return el;
+                }
+                foundDisabledButton = el;
+            }
+        }
+        await new Promise((r) => setTimeout(r, interval));
+    }
+
+    return foundDisabledButton;
+}
+
+/**
+ * 將提示詞寫入輸入元素並透過 execCommand 與事件鏈通知框架更新狀態
  */
 export async function injectPrompt(inputElement: HTMLElement, prompt: string): Promise<boolean> {
     try {
-        inputElement.focus();
+        const editor = (inputElement.closest('[contenteditable="true"]') || inputElement) as HTMLElement;
+        editor.focus();
 
-        // 尋找內部實際寫入文字的節點 (通常是 p 或 contenteditable 本身)
-        const targetNode = inputElement.querySelector("p") || inputElement.querySelector("div") || inputElement;
-        targetNode.textContent = prompt;
+        // 1. 嘗試透過 document.execCommand('insertText') 原生編輯器指令寫入
+        // 這是 Quill / Angular / Contenteditable 最能感知內容變更並觸發送出按鈕轉換的方式
+        let inserted = false;
+        try {
+            const selection = window.getSelection();
+            if (selection) {
+                const range = document.createRange();
+                range.selectNodeContents(editor);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+            inserted = document.execCommand("insertText", false, prompt);
+        } catch {
+            inserted = false;
+        }
 
-        // 🔑 觸發 InputEvent 讓 Angular/Gemini 框架感知資料變更
-        inputElement.dispatchEvent(
+        // 2. 若 execCommand 失敗或未寫入文字，降級為 DOM 結構注入
+        if (!inserted || !editor.textContent || editor.textContent.trim().length === 0) {
+            console.log("[GeminiUrlPrompt] execCommand 未能成功寫入，使用 DOM 結構注入");
+            editor.innerHTML = "";
+            const lines = prompt.split("\n");
+            for (const line of lines) {
+                const p = document.createElement("p");
+                p.textContent = line || "\u200B";
+                editor.appendChild(p);
+            }
+        }
+
+        // 3. 游標移動到最後以模擬真實輸入
+        try {
+            const selection = window.getSelection();
+            if (selection) {
+                const range = document.createRange();
+                range.selectNodeContents(editor);
+                range.collapse(false);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        } catch {}
+
+        // 4. 派發完整的輸入與變更事件，確保 Angular / Lit / Quill 偵測到值變化
+        editor.dispatchEvent(
             new InputEvent("input", {
                 bubbles: true,
                 cancelable: true,
-                // @ts-ignore
                 inputType: "insertText",
                 data: prompt,
             })
         );
-        inputElement.dispatchEvent(new Event("input", { bubbles: true }));
-        inputElement.dispatchEvent(new Event("change", { bubbles: true }));
+        editor.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
+        editor.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+
+        const parentRich = editor.closest("rich-textarea");
+        if (parentRich) {
+            parentRich.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
+            parentRich.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+        }
+
         return true;
     } catch (e) {
         console.error("[GeminiUrlPrompt] 寫入提示詞失敗:", e);
@@ -98,35 +169,67 @@ export async function injectPrompt(inputElement: HTMLElement, prompt: string): P
 }
 
 /**
- * 送出提示詞（點擊按鈕或派發 Enter 鍵）
+ * 完整模擬點擊事件鏈 (相容 Angular / PointerEvent / MouseEvent)
  */
-export async function submitPrompt(sendButton: Element | null, inputElement: HTMLElement, maxWaitMs: number = 3000): Promise<boolean> {
-    const startTime = Date.now();
+export function triggerClick(element: HTMLElement): void {
+    element.focus();
+    element.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
+    element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    element.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true }));
+    element.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true }));
+    element.click();
+}
 
-    // 若有找到送出按鈕，等待解除 disabled
+/**
+ * 完整模擬 Enter 鍵鍵盤事件 (送出備援)
+ */
+export function triggerEnter(element: HTMLElement): void {
+    element.focus();
+    const eventOptions: KeyboardEventInit = {
+        key: "Enter",
+        code: "Enter",
+        keyCode: 13,
+        which: 13,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        shiftKey: false,
+        ctrlKey: false,
+        altKey: false,
+        metaKey: false,
+    };
+    element.dispatchEvent(new KeyboardEvent("keydown", eventOptions));
+    element.dispatchEvent(new KeyboardEvent("keypress", eventOptions));
+    element.dispatchEvent(new KeyboardEvent("keyup", eventOptions));
+}
+
+/**
+ * 送出提示詞（優先點擊啟用按鈕，失敗則執行 Enter 備援）
+ */
+export async function submitPrompt(sendButton: HTMLElement | null, inputElement: HTMLElement): Promise<boolean> {
+    const editor = (inputElement.closest('[contenteditable="true"]') || inputElement) as HTMLElement;
+
     if (sendButton) {
-        while (Date.now() - startTime < maxWaitMs) {
-            const btn = sendButton as HTMLButtonElement;
-            const isDisabled = btn.disabled || btn.getAttribute("aria-disabled") === "true";
-            if (!isDisabled) {
-                btn.click();
-                return true;
-            }
-            await new Promise((r) => setTimeout(r, 150));
+        console.log("[GeminiUrlPrompt] 找到送出按鈕，準備觸發點擊:", sendButton);
+        // 短暫等待 200ms 確保 Angular 內部狀態穩定
+        await new Promise((r) => setTimeout(r, 200));
+        triggerClick(sendButton);
+
+        // 等待 500ms 檢查輸入框是否已被清空 (代表送出成功)
+        await new Promise((r) => setTimeout(r, 500));
+        const stillHasText = (editor.textContent || "").trim().length > 0;
+        if (!stillHasText) {
+            console.log("[GeminiUrlPrompt] 偵測到輸入框已清空，送出成功！");
+            return true;
         }
-        // 若按鈕逾時仍為 disabled，仍嘗試點擊一次
-        (sendButton as HTMLElement).click();
+
+        console.log("[GeminiUrlPrompt] 點擊後輸入框尚未清空，執行 Enter 鍵備援送出...");
+    } else {
+        console.log("[GeminiUrlPrompt] 未找到送出按鈕，直接執行 Enter 鍵備援送出...");
     }
 
-    // 備援方案：在輸入框派發 Enter 鍵鍵盤事件
-    inputElement.dispatchEvent(
-        new KeyboardEvent("keydown", {
-            key: "Enter",
-            code: "Enter",
-            keyCode: 13,
-            which: 13,
-            bubbles: true,
-        })
-    );
+    // 備援方案：在 contenteditable 編輯器上派發 Enter 鍵
+    triggerEnter(editor);
+    await new Promise((r) => setTimeout(r, 300));
     return true;
 }

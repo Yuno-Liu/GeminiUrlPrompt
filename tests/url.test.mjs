@@ -52,12 +52,16 @@ test("Constants - Selector Validation", async (t) => {
         assert.ok(INPUT_SELECTORS.length >= 5);
         assert.ok(INPUT_SELECTORS.some((s) => s.includes("rich-textarea")));
         assert.ok(INPUT_SELECTORS.some((s) => s.includes("contenteditable")));
+        assert.ok(INPUT_SELECTORS.some((s) => s.includes(".ql-editor")));
     });
 
-    await t.test("送出按鈕選擇器應包含中英文 aria-label 與類名候選", () => {
-        assert.ok(SEND_BUTTON_SELECTORS.length >= 5);
-        assert.ok(SEND_BUTTON_SELECTORS.some((s) => s.includes("Send")));
+    await t.test("送出按鈕選擇器應包含繁中(傳送/送出)、簡中、英文 aria-label 與類名候選", () => {
+        assert.ok(SEND_BUTTON_SELECTORS.length >= 10);
+        assert.ok(SEND_BUTTON_SELECTORS.some((s) => s.includes("傳送")));
         assert.ok(SEND_BUTTON_SELECTORS.some((s) => s.includes("送出")));
         assert.ok(SEND_BUTTON_SELECTORS.some((s) => s.includes("發送")));
+        assert.ok(SEND_BUTTON_SELECTORS.some((s) => s.includes("发送")));
+        assert.ok(SEND_BUTTON_SELECTORS.some((s) => s.includes("Send")));
+        assert.ok(SEND_BUTTON_SELECTORS.some((s) => s.includes("send-button")));
     });
 });

@@ -4,7 +4,7 @@
 
 import { INPUT_SELECTORS, SEND_BUTTON_SELECTORS, DEFAULT_TIMEOUT } from "./utils/constants";
 import { extractPromptFromUrl, removePromptFromUrl } from "./utils/url";
-import { waitForElement, findElementByCandidates, injectPrompt, submitPrompt } from "./utils/dom";
+import { waitForElement, waitForEnabledSendButton, injectPrompt, submitPrompt } from "./utils/dom";
 
 let lastProcessedPrompt: string | null = null;
 let isProcessing = false;
@@ -18,28 +18,32 @@ async function checkAndExecute(): Promise<void> {
     }
 
     isProcessing = true;
-    lastProcessedPrompt = prompt;
     console.log("[GeminiUrlPrompt] 偵測到提示詞參數:", prompt);
 
     try {
-        // 等待輸入框出現 (最多等待 DEFAULT_TIMEOUT 毫秒)
+        // 1. 等待輸入框出現 (最多等待 DEFAULT_TIMEOUT 毫秒)
         const inputElement = (await waitForElement(INPUT_SELECTORS, DEFAULT_TIMEOUT)) as HTMLElement;
         console.log("[GeminiUrlPrompt] 成功定位輸入框:", inputElement);
 
+        // 2. 注入提示詞並觸發框架資料響應
         const injected = await injectPrompt(inputElement, prompt);
         if (!injected) {
-            isProcessing = false;
+            console.error("[GeminiUrlPrompt] 注入提示詞失敗，放棄送出");
             return;
         }
 
-        // 短暫等待讓框架更新送出按鈕狀態
-        await new Promise((r) => setTimeout(r, 600));
+        // 3. 輪詢等待送出按鈕啟用 (最長 6 秒，讓框架將語音/麥克風圖示切換為送出箭頭並解除 disabled)
+        console.log("[GeminiUrlPrompt] 等待送出按鈕啟用...");
+        const sendButton = await waitForEnabledSendButton(SEND_BUTTON_SELECTORS, 6000, 150);
 
-        const sendButton = findElementByCandidates(SEND_BUTTON_SELECTORS);
-        await submitPrompt(sendButton, inputElement);
-        console.log("[GeminiUrlPrompt] 成功送出提示詞！");
+        // 4. 執行送出
+        const submitted = await submitPrompt(sendButton, inputElement);
+        if (submitted) {
+            console.log("[GeminiUrlPrompt] 提示詞送出完成！");
+            lastProcessedPrompt = prompt;
+        }
 
-        // 清除網址列中的 ?p= 參數，防止重新整理網頁時重複送出
+        // 5. 清除網址列中的 ?p= 參數，防止重新整理網頁時重複送出
         const cleanUrl = removePromptFromUrl(window.location.href);
         if (cleanUrl !== window.location.href) {
             window.history.replaceState({}, document.title, cleanUrl);
